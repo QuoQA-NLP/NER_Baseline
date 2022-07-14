@@ -10,7 +10,7 @@ Training config available at [config.yaml](./config.yaml)
 | :----------------: | :---: | :------: | :-------: | :----: | :------: |
 | klue/roberta-large | 0.061 |  0.980   |   0.876   | 0.906  |  0.891   |
 | klue/roberta-base  | 0.183 |  0.952   |   0.782   | 0.834  |  0.807   |
-|      kpfbert       |       |          |           |        |          |
+|      kpfbert       | 0.086 |  0.972   |   0.846   | 0.877  |  0.861   |
 
 ### How to run
 
