@@ -1,84 +1,80 @@
-from typing import Dict, List, Union
+import numpy as np
+from transformers import AutoTokenizer
+from datasets import load_dataset
+from easydict import EasyDict
+import yaml
 
-import torch
-from torch.utils.data import DataLoader, Dataset
-from transformers import PreTrainedTokenizer
+# Read config.yaml file
+with open("config.yaml") as infile:
+    SAVED_CFG = yaml.load(infile, Loader=yaml.FullLoader)
+    CFG = EasyDict(SAVED_CFG["CFG"])
 
+dataset = load_dataset(CFG.dset_name, CFG.task)
 
-class CollateNer(object):
-    def __init__(
-        self, tokenizer: PreTrainedTokenizer, label2idx: Dict[str, int], max_length: int
-    ):
-        self.tokenizer = tokenizer
-        self.label2idx = label2idx
-        self.max_length = max_length
+# total 13 labels
+label_list = [
+    "B-PS",
+    "I-PS",
+    "B-LC",
+    "I-LC",
+    "B-OG",
+    "I-OG",
+    "B-DT",
+    "I-DT",
+    "B-TI",
+    "I-TI",
+    "B-QT",
+    "I-QT",
+    "O",
+]
 
-    def __call__(self, input_examples):
-        input_texts, input_labels_str = [], []
-        for input_example in input_examples:
-            text, label_strs = input_example
-            input_texts.append(text)
-            input_labels_str.append(label_strs)
+print(dataset["train"].features["ner_tags"])
 
-        encoded_texts = self.tokenizer.batch_encode_plus(
-            input_texts,
-            add_special_tokens=True,
-            max_length=self.max_length,
-            truncation=True,
-            padding="max_length",  # KLUE 베이스라인과 input형태를 일치 시키기 위해
-            return_tensors="pt",
-            return_token_type_ids=True,
-            return_attention_mask=True,
-        )
-        input_ids = encoded_texts["input_ids"]
-        token_type_ids = encoded_texts["token_type_ids"]
-        attention_mask = encoded_texts["attention_mask"]
-
-        len_input = input_ids.size(1)
-        input_labels = []
-        for input_label_str in input_labels_str:
-            input_label_str = (
-                ["O"] + input_label_str + (len_input - len(input_label_str) - 1) * ["O"]
-            )
-            input_label = [self.label2idx[x] for x in input_label_str]
-            input_label = torch.tensor(input_label).long()
-            input_labels.append(input_label)
-
-        input_labels = torch.stack(input_labels)
-        return input_ids, token_type_ids, attention_mask, input_labels
+tokenizer = AutoTokenizer.from_pretrained(CFG.PLM)
 
 
-class NerDataset(Dataset):
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizer,
-        dataset: List[Dict[str, Union[str, List[str]]]],
-        label_list: List[str],
-        max_length: int,
-        batch_size: int = None,
-        shuffle: bool = False,
-        **kwargs
-    ):
-        self.dataset = dataset
-        self.tokenizer = tokenizer
-        self.max_length = max_length
+def label_tokens_ner(examples):
+    sentence = "".join(examples["tokens"])
+    tokenized_output = tokenizer(
+        sentence,
+        return_token_type_ids=False,
+        return_offsets_mapping=True,
+        max_length=512,
+        truncation=True,
+    )
 
-        self.label2idx = {label: i for i, label in enumerate(label_list)}
-        self.collate_fn = CollateNer(tokenizer, self.label2idx, max_length)
-        self.loader = DataLoader(
-            self,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            collate_fn=self.collate_fn,
-            **kwargs
-        )
+    label_token_map = []
 
-    def __len__(self):
-        return len(self.dataset)
+    list_label = examples["ner_tags"]
+    list_label = [-100] + list_label + [-100]
+    # print(list_label)
+    for token_idx, offset_map in enumerate(tokenized_output["offset_mapping"]):
+        begin_letter_idx, end_letter_idx = offset_map
+        label_begin = list_label[begin_letter_idx]
+        label_end = list_label[end_letter_idx]
+        token_label = np.array([label_begin, label_end])
+        if label_begin == 12 and label_end == 12:
+            token_label = 12
+        elif label_begin == -100 and label_end == -100:
+            token_label = -100
+        else:
+            token_label = label_begin if label_begin != 12 else 12
+            token_label = label_end if label_end != 12 else 12
 
-    def __getitem__(self, index):
-        instance = self.dataset[index]
-        text = instance["text_a"]
-        label_strs = instance["label"]
+        label_token_map.append(token_label)
+        # else:
+        #   raise ValueError("label_begin != label_end")
 
-        return text, label_strs
+    tokenized_output["labels"] = label_token_map
+    return tokenized_output
+
+
+if CFG.DEBUG:
+    sample_idx = 0
+    data_seg = "train"
+    print(dataset[data_seg][sample_idx]["sentence"])
+    print("------Labeled output------")
+    output = label_tokens_ner(dataset[data_seg][sample_idx])
+    for idx, id in enumerate(output["input_ids"]):
+        print(idx, tokenizer.convert_ids_to_tokens(output["input_ids"])[idx], output["labels"][idx])
+
