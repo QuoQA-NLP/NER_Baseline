@@ -9,7 +9,7 @@ CFG:
   PLM: "klue/roberta-large"
   train_batch_size: 64
   valid_batch_size: 128
-  num_epochs: 3 # validation loss is increasing after 5 epochs
+  num_epochs: 6 # validation loss is increasing after 5 epochs
   max_token_length: 256
   learning_rate: 0.00005 # has to be set as float explicitly due to https://stackoverflow.com/questions/30458977/yaml-loads-5e-6-as-string-and-not-a-number
   weight_decay: 0.001 # https://paperswithcode.com/method/weight-decay
@@ -19,7 +19,7 @@ CFG:
   fp16: false
   load_best_model_at_end: true
   gradient_accumulation_steps: 1
-  num_checkpoints: 3
+  num_checkpoints: 6
   evaluation_strategy: "epoch"
   save_strategy: "epoch"
   dropout: 0.1
