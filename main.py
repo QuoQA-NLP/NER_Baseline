@@ -19,7 +19,7 @@ import yaml
 import wandb
 from dotenv import load_dotenv
 from easydict import EasyDict
-from model import RobertaForTokenClassification
+from model import RobertaWithLinearHead
 
 def main() :
     # Read config.yaml file
@@ -42,7 +42,7 @@ def main() :
     config = AutoConfig.from_pretrained(CFG.PLM)
     config.num_labels = CFG.num_labels
 
-    model = RobertaForTokenClassification.from_pretrained(CFG.PLM, config=config)
+    model = RobertaWithLinearHead.from_pretrained(CFG.PLM, config=config)
 
     # Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(CFG.PLM)

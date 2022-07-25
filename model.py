@@ -9,7 +9,7 @@ from typing import Optional, Tuple, Union
 from transformers.modeling_outputs import TokenClassifierOutput
 from transformers.models.roberta.modeling_roberta import RobertaModel, RobertaPreTrainedModel
 
-class RobertaForTokenClassification(RobertaPreTrainedModel):
+class RobertaWithLinearHead(RobertaPreTrainedModel):
     _keys_to_ignore_on_load_unexpected = [r"pooler"]
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
@@ -22,8 +22,10 @@ class RobertaForTokenClassification(RobertaPreTrainedModel):
             config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.classifier1 = nn.Linear(config.hidden_size, config.hidden_size)
+        self.classifier2 = nn.Linear(config.hidden_size, config.hidden_size)
 
+        self.classifier = nn.Linear(config.hidden_size*2, config.num_labels)
         self.post_init()
 
     def forward(
@@ -55,9 +57,13 @@ class RobertaForTokenClassification(RobertaPreTrainedModel):
         )
 
         sequence_output = outputs[0]
-
         sequence_output = self.dropout(sequence_output)
-        logits = self.classifier(sequence_output)
+
+        logits1 = self.classifier1(sequence_output)
+        logits2 = self.classifier2(sequence_output)
+
+        logits = torch.cat([logits1, logits2], dim=-1)
+        logits = self.classifier(logits)
 
         loss = None
         if labels is not None:
