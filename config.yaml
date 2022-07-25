@@ -3,25 +3,31 @@ CFG:
   dset_name: "klue"
   task: "ner"
   num_labels: 13
+  seed: 42
 
   # training arguments
   DEBUG: false
   PLM: "klue/roberta-large"
-  train_batch_size: 64
-  valid_batch_size: 128
-  num_epochs: 6 # validation loss is increasing after 5 epochs
+  train_batch_size: 32
+  valid_batch_size: 32
+  num_epochs: 5
   max_token_length: 256
-  learning_rate: 0.00005 # has to be set as float explicitly due to https://stackoverflow.com/questions/30458977/yaml-loads-5e-6-as-string-and-not-a-number
-  weight_decay: 0.001 # https://paperswithcode.com/method/weight-decay
+  learning_rate: 0.00003
+  weight_decay: 0.001
+  warmup_ratio: 0.05
   adam_beta_1: 0.9
-  adam_beta_2: 0.98
-  epsilon: 0.000000001
+  adam_beta_2: 0.999
+  epsilon: 0.00000001
   fp16: false
   load_best_model_at_end: true
   gradient_accumulation_steps: 1
-  num_checkpoints: 6
-  evaluation_strategy: "epoch"
-  save_strategy: "epoch"
+  num_checkpoints: 5
+  evaluation_strategy: "steps"
+  save_strategy: "steps"
+  metric_for_best_model: "f1"
+  logging_steps: 100
+  eval_steps: 500
+  save_steps: 500
   dropout: 0.1
 
   # inference arguments
