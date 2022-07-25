@@ -2,7 +2,7 @@ CFG:
   # dataset arguments
   dset_name: "klue"
   task: "ner"
-  num_labels: 13
+  num_labels: 7
   seed: 42
 
   # training arguments
@@ -11,7 +11,7 @@ CFG:
   train_batch_size: 32
   valid_batch_size: 32
   num_epochs: 5
-  max_token_length: 256
+  max_token_length: 120
   learning_rate: 0.00003
   weight_decay: 0.001
   warmup_ratio: 0.05

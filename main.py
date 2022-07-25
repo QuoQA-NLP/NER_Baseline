@@ -1,12 +1,15 @@
 import os
 import random
 import torch
-from dataset import label_tokens_ner  # custom function
-from metric import compute_metrics
+
+from utils.metric import Metric
+from utils.dataset import Loader
+from utils.preprocessor import Preprocessor
+
 import numpy as np
 from transformers import (
+    AutoConfig,
     AutoTokenizer,
-    # AutoModelForTokenClassification,
     TrainingArguments,
     Trainer,
     DataCollatorForTokenClassification,
@@ -15,7 +18,6 @@ from transformers import (
 import yaml
 import wandb
 from dotenv import load_dotenv
-from datasets import load_dataset
 from easydict import EasyDict
 from model import RobertaForTokenClassification
 
@@ -25,14 +27,27 @@ def main() :
         SAVED_CFG = yaml.load(infile, Loader=yaml.FullLoader)
         CFG = EasyDict(SAVED_CFG["CFG"])
 
+    # Seed
     seed_everything(CFG.seed)
-    tokenizer = AutoTokenizer.from_pretrained(CFG.PLM)
-    dataset = load_dataset(CFG.dset_name, CFG.task)
-    model = RobertaForTokenClassification.from_pretrained(CFG.PLM, num_labels=CFG.num_labels)
 
-    # Dataset
-    dataset = load_dataset(CFG.dset_name, CFG.task)
-    tokenized_datasets = dataset.map(label_tokens_ner, batched=False)
+    # Loading Datasets
+    loader = Loader("config.yaml", CFG.max_token_length)
+    datasets = loader.load()
+
+    # Preprocessing Datasets
+    preprocessor = Preprocessor()
+    datasets = datasets.map(preprocessor, batched=True)
+
+    # Config & Model
+    config = AutoConfig.from_pretrained(CFG.PLM)
+    config.num_labels = CFG.num_labels
+
+    model = RobertaForTokenClassification.from_pretrained(CFG.PLM, config=config)
+
+    # Tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(CFG.PLM)
+    
+    # Data Collator
     data_collator = DataCollatorForTokenClassification(tokenizer)
 
     # Wandb
@@ -63,25 +78,29 @@ def main() :
         save_strategy=CFG.save_strategy,
         save_total_limit=CFG.num_checkpoints,
         load_best_model_at_end=CFG.load_best_model_at_end,
+        metric_for_best_model=CFG.metric_for_best_model,
     )
 
     wandb.config.update(training_args)
 
+    # Metrics
+    metrics = Metric()
+
+    # Trainer
     trainer = Trainer(
         model,
         training_args,
-        train_dataset=tokenized_datasets["train"],
-        eval_dataset=tokenized_datasets["validation"],
+        train_dataset=datasets["train"],
+        eval_dataset=datasets["validation"],
         data_collator=data_collator,
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
+        compute_metrics=metrics.compute_metrics,
     )
 
-    # -- Training
+    # Training
     trainer.train()
-    # -- Evaluating
+    # Evaluating
     trainer.evaluate()
-
     wandb.finish()
 
 def seed_everything(seed):
