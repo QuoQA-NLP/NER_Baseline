@@ -7,13 +7,13 @@ class Metric :
     def __init__(self, ) :
         self.metric = load_metric("seqeval")
         self.label_list = [
-            "O",
             "B-PS",
             "B-LC",
             "B-OG",
             "B-DT",
             "B-TI",
             "B-QT",
+            "O",
             "I-PS",
             "I-LC",
             "I-OG",
@@ -28,22 +28,22 @@ class Metric :
         for i in tqdm(range(batch_size)) :
             for j in range(1, seq_size) :
 
-                if (p[i,j] == 1 and p[i,j-1] == 1) or (p[i,j] == 1 and p[i,j-1] == 7) : # B-PS or I-PS
+                if (p[i,j] == 0 and p[i,j-1] == 0) or (p[i,j] == 0 and p[i,j-1] == 7) : # B-PS or I-PS
                     p[i,j] = 7 # I-PS
 
-                if (p[i,j] == 2 and p[i,j-1] == 2)  or (p[i,j] == 2 and p[i,j-1] == 8): # B-LC or I-LC
+                if (p[i,j] == 1 and p[i,j-1] == 1)  or (p[i,j] == 1 and p[i,j-1] == 8): # B-LC or I-LC
                     p[i,j] = 8 # I-LC
 
-                if (p[i,j] == 3 and p[i,j-1] == 3)  or (p[i,j] == 3 and p[i,j-1] == 9) : # B-OG or I-OG
+                if (p[i,j] == 2 and p[i,j-1] == 2)  or (p[i,j] == 2 and p[i,j-1] == 9) : # B-OG or I-OG
                     p[i,j] = 9 # I-OG
 
-                if (p[i,j] == 4 and p[i,j-1] == 3) or (p[i,j] == 4 and p[i,j-1] == 10) : # B-DT or I-DT
+                if (p[i,j] == 3 and p[i,j-1] == 3) or (p[i,j] == 3 and p[i,j-1] == 10) : # B-DT or I-DT
                     p[i,j] = 10 # I-DT
 
-                if (p[i,j] == 5 and p[i,j-1] == 4)  or (p[i,j] == 5 and p[i,j-1] == 11) : # B-IT or I-IT
+                if (p[i,j] == 4 and p[i,j-1] == 4)  or (p[i,j] == 4 and p[i,j-1] == 11) : # B-IT or I-IT
                     p[i,j] = 11 # I-IT
 
-                if (p[i,j] == 6 and p[i,j-1] == 5)  or (p[i,j] == 6 and p[i,j-1] == 12) : # B-QT or I-QT
+                if (p[i,j] == 5 and p[i,j-1] == 5)  or (p[i,j] == 5 and p[i,j-1] == 12) : # B-QT or I-QT
                     p[i,j] = 12 # I-QT
         return p
 

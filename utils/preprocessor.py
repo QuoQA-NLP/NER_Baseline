@@ -4,19 +4,19 @@ class Preprocessor :
 
     def __init__(self, ) :
         self.mapping = {
-            0: 1,       # B-PS
-            1: 1,       
-            2: 2,       # B-LC
-            3: 2,       
-            4: 3,       # B-OG
-            5: 3,
-            6: 4,       # B-DT
-            7: 4,
-            8: 5,       # B-IT
-            9: 5,
-            10: 6,      # B-QT
-            11: 6,
-            12: 0,      # O
+            0: 0,       # B-PS
+            1: 0,       
+            2: 1,       # B-LC
+            3: 1,       
+            4: 2,       # B-OG
+            5: 2,
+            6: 3,       # B-DT
+            7: 3,
+            8: 4,       # B-IT
+            9: 4,
+            10: 5,      # B-QT
+            11: 5,
+            12: 6,      # O
             -100: -100, # LABEL_PAD_TOKEN
         }
 
