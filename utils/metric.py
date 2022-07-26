@@ -1,7 +1,5 @@
 
-import numpy as np
 from datasets import load_metric
-from tqdm import tqdm
 
 class Metric :
 

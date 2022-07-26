@@ -26,8 +26,8 @@ CFG:
   save_strategy: "steps"
   metric_for_best_model: "f1"
   logging_steps: 100
-  eval_steps: 500
-  save_steps: 500
+  eval_steps: 20
+  save_steps: 20
   dropout: 0.1
 
   # inference arguments

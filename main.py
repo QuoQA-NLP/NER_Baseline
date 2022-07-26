@@ -4,8 +4,6 @@ import torch
 
 from utils.metric import Metric
 from utils.dataset import Loader
-from utils.preprocessor import Preprocessor
-from utils.postprocessor import Postprocessor
 
 import numpy as np
 from transformers import (
@@ -13,6 +11,7 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     DataCollatorForTokenClassification,
+    AutoModelForTokenClassification,
 )
 
 import yaml
@@ -20,7 +19,6 @@ import wandb
 from trainer import NERTrainer
 from dotenv import load_dotenv
 from easydict import EasyDict
-from model import RobertaWithLinearHead
 
 def main() :
     # Read config.yaml file
@@ -33,25 +31,12 @@ def main() :
 
     # Loading Datasets
     loader = Loader("config.yaml", CFG.max_token_length)
-    datasets = loader.load()
-
-    # Preprocessing Datasets
-    preprocessor = Preprocessor()
-    datasets = datasets.map(preprocessor, batched=True)
-
-    # Train Dataset
-    train_dataset = datasets["train"].remove_columns(column_names=["sentence", "tokens", "ner_tags", "offset_mapping"])
-    print(train_dataset)
-
-    # Validation Dataset
-    eval_dataset = datasets["validation"].remove_columns(column_names=["sentence", "offset_mapping", "labels"])
-    print(eval_dataset)
+    train_dataset, eval_dataset = loader.load()
 
     # Config & Model
     config = AutoConfig.from_pretrained(CFG.PLM)
     config.num_labels = CFG.num_labels
-
-    model = RobertaWithLinearHead.from_pretrained(CFG.PLM, config=config)
+    model = AutoModelForTokenClassification.from_pretrained(CFG.PLM, config=config)
 
     # Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(CFG.PLM)
@@ -62,12 +47,12 @@ def main() :
     # # Wandb
     model_name = CFG.PLM.replace("/", "_")
 
-    load_dotenv(dotenv_path="wandb.env")
-    WANDB_AUTH_KEY = os.getenv('WANDB_AUTH_KEY')
-    wandb.login(key=WANDB_AUTH_KEY)
+    # load_dotenv(dotenv_path="wandb.env")
+    # WANDB_AUTH_KEY = os.getenv('WANDB_AUTH_KEY')
+    # wandb.login(key=WANDB_AUTH_KEY)
 
     run_name = f"{model_name}-finetuned-ner"
-    wandb.init(entity=CFG.entity_name, project=CFG.project_name, name=run_name)
+    # wandb.init(entity=CFG.entity_name, project=CFG.project_name, name=run_name)
 
     # Train & Eval configs
     training_args = TrainingArguments(
@@ -90,11 +75,10 @@ def main() :
         metric_for_best_model=CFG.metric_for_best_model,
     )
 
-    wandb.config.update(training_args)
+    # wandb.config.update(training_args)
 
     # Metrics
     metrics = Metric()
-    postprocessor = Postprocessor()
 
     # Trainer
     trainer = NERTrainer(
@@ -104,7 +88,7 @@ def main() :
         eval_dataset=eval_dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
-        postprocessor=postprocessor,
+        postprocess_fn=None, # Need to update
         max_token_length=CFG.max_token_length,
         compute_metrics=metrics.compute_metrics,
     )

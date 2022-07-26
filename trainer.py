@@ -9,38 +9,26 @@ from typing import Optional, List, Dict
 
 class NERTrainer(Trainer) :
 
-    def __init__(self, *args, postprocessor=None, max_token_length, **kwargs):
+    def __init__(self, *args, postprocess_fn, max_token_length, **kwargs):
         super().__init__(*args, **kwargs)
-        self.postprocessor = postprocessor
+        self.post_process_fn = postprocess_fn
         self.max_token_length = max_token_length
-        self.id_convertor = {
-            0: 0,       # B-PS
-            1: 7,       # I-PS
-            2: 1,       # B-LC
-            3: 8,       # I-LC
-            4: 2,       # B-OG
-            5: 9,       # I-OG
-            6: 3,       # B-DT
-            7: 10,      # I-DT
-            8: 4,       # B-IT
-            9: 11,      # I-IT
-            10: 5,      # B-QT
-            11: 12,     # I-QT
-            12: 6,      # O
+        self.mapping = {
+            0:  "B-DT",
+            1:  "B-LC",
+            2:  "B-OG",
+            3:  "B-PS",
+            4:  "B-QT",
+            5:  "B-TI",
+            6:  "O",
         }
 
-    def subword_to_char(self, pred, token_list) :
+    # need to change this function
+    def subword_to_char(self, pred_id, token_list, offset_mapping) :
         sentence = "".join(token_list)
-        tokenized_output = self.tokenizer(
-            sentence,
-            return_token_type_ids=False,
-            return_offsets_mapping=True,
-            max_length=self.max_token_length,
-            truncation=True,
-        )
-
-        offset_mapping = tokenized_output["offset_mapping"]
         length = len(offset_mapping)
+
+        breakpoint()
         
         mapping = {}
         for i in range(length) :
@@ -51,11 +39,20 @@ class NERTrainer(Trainer) :
                 continue
 
             for j in range(start_pos, end_pos) :
-                mapping[j] = i
+                mapping[j] = pred_id[i]
+        
+        for i in range(len(sentence)) :
+            ch = sentence[i]
+            if ch == " " :
+                if i not in mapping :
+                    if mapping[i-1] == mapping[i+1] :
+                        mapping[i] = mapping[i-1]
+                    else :
+                        mapping[i] = 12
 
         char_pred = []
         for i in range(len(token_list)) :
-            p = pred[mapping[i]] if i in mapping else 6
+            p = pred_id[mapping[i]] if i in mapping else 12
             char_pred.append(p)
         return char_pred
 
@@ -69,8 +66,10 @@ class NERTrainer(Trainer) :
 
         eval_dataset = self.eval_dataset if eval_dataset is None else eval_dataset
 
-        tokens = copy.deepcopy(eval_dataset["tokens"])
-        labels = copy.deepcopy(eval_dataset["ner_tags"])
+        tokens = eval_dataset["tokens"]
+        labels = eval_dataset["ner_tags"]
+        offset_mappings = eval_dataset["offset_mapping"]
+
         eval_dataset = eval_dataset.remove_columns(column_names=["ner_tags", "tokens"])
 
         self._memory_tracker.start()
@@ -88,20 +87,17 @@ class NERTrainer(Trainer) :
         prediction = output.predictions
         pred_ids = np.argmax(prediction, axis=-1)
         
-        tag_predictions, tag_labels = [], []
+        char_predictions, char_labels = [], []
         for i in range(len(pred_ids)) :
-            pred = pred_ids[i]
-            token = tokens[i]
+            pred_id = pred_ids[i]
+            token_list = tokens[i]
+            offset_mapping = offset_mappings[i]
 
-            char_pred = self.subword_to_char(pred, token)
-            tag_predictions.append(char_pred)
+            char_pred = self.subword_to_char(pred_id, token_list, offset_mapping)
 
-            ner_tag = [self.id_convertor[t] for t in labels[i]]
-            tag_labels.append(ner_tag)
+        breakpoint()
 
-        tag_predictions, tag_labels = self.postprocessor(tag_predictions, tag_labels)
-
-        metrics = self.compute_metrics({"prediction" : tag_predictions, "labels" : tag_labels})
+        metrics = self.compute_metrics({"prediction" : char_predictions, "labels" : char_labels})
         for key in list(metrics.keys()):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)

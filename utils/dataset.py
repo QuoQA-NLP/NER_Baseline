@@ -10,19 +10,59 @@ class Loader :
     def __init__(self, path, max_length) :
         self.path = path
         self.max_length = max_length
-
+        self.mapping = {
+            0:  0,
+            1:  0,
+            2:  1,
+            3:  1,
+            4:  2,
+            5:  2,
+            6:  3,
+            7:  3,
+            8:  4,
+            9:  4,
+            10: 5,
+            11: 5,
+            12: 6
+        }
+        
     def load(self) :
         # Read config.yaml file
         with open(self.path) as infile:
             SAVED_CFG = yaml.load(infile, Loader=yaml.FullLoader)
             CFG = EasyDict(SAVED_CFG["CFG"])
 
+        # Loading Datasets
         dataset = load_dataset(CFG.dset_name, CFG.task)
-        tokenizer = AutoTokenizer.from_pretrained(CFG.PLM)
+        train_dataset, eval_dataset = dataset["train"], dataset["validation"]
 
+        # Preprocessed Training Datasets
+        train_dataset = train_dataset.map(self.preprocess, batched=True)
+
+        tokenizer = AutoTokenizer.from_pretrained(CFG.PLM)
         encode_fn = partial(self.label_tokens_ner, tokenizer=tokenizer)
-        dataset = dataset.map(encode_fn, batched=False)
-        return dataset
+
+        # Encoding Datasets
+        train_dataset = train_dataset.map(encode_fn, batched=False)
+        eval_dataset = eval_dataset.map(encode_fn, batched=False)
+
+        # Remove unnecessary columns
+        train_dataset = train_dataset.remove_columns(column_names=["sentence", "tokens", "ner_tags", "offset_mapping"])
+        eval_dataset = eval_dataset.remove_columns(column_names=["sentence", "labels"])
+        return train_dataset, eval_dataset
+
+    def preprocess(self, examples) :
+
+        batch_size = len(examples["ner_tags"])
+
+        preprocessed_tags = []
+        for i in range(batch_size) :
+            ner_tag = examples["ner_tags"][i]
+            ner_tag = [self.mapping[t] for t in ner_tag]
+            preprocessed_tags.append(ner_tag)
+
+        examples["ner_tags"] = preprocessed_tags
+        return examples
 
     def label_tokens_ner(self, examples, tokenizer):
         sentence = "".join(examples["tokens"])
@@ -43,13 +83,13 @@ class Loader :
             label_begin = list_label[begin_letter_idx]
             label_end = list_label[end_letter_idx]
             token_label = np.array([label_begin, label_end])
-            if label_begin == 12 and label_end == 12:
-                token_label = 12
+            if label_begin == 6 and label_end == 6:
+                token_label = 6
             elif label_begin == -100 and label_end == -100:
                 token_label = -100
             else:
-                token_label = label_begin if label_begin != 12 else 12
-                token_label = label_end if label_end != 12 else 12
+                token_label = label_begin if label_begin != 6 else 6
+                token_label = label_end if label_end != 6 else 6
 
             label_token_map.append(token_label)
 
