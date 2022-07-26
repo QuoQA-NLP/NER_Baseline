@@ -35,7 +35,7 @@ class Postprocessor :
                 p[i] = "I-DT"
 
             if (p[i-1] == "B-TI" or p[i-1] == "I-TI") and p[i] == "B-TI" :
-                p[i] = "I-QT"
+                p[i] = "I-TI"
 
             if (p[i-1] == "B-QT" or p[i-1] == "I-QT") and p[i] == "B-QT" :
                 p[i] = "I-QT"
@@ -45,9 +45,9 @@ class Postprocessor :
 
 
     def __call__(self, predictions, labels) :
-        predictions = [[self.label_mapping[p] for p in pred ] for pred in predictions]
+        predictions = [[self.label_mapping[p] for p in pred] for pred in predictions]
         predictions = [self.recover(pred) for pred in predictions]
 
-        labels = [[self.label_mapping[l] for l in label ] for label in labels]
+        labels = [[self.label_mapping[l] for l in label] for label in labels]
 
         return predictions, labels

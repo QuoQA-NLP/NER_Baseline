@@ -35,7 +35,7 @@ class NERTrainer(Trainer) :
             sentence,
             return_token_type_ids=False,
             return_offsets_mapping=True,
-            max_length=self.args.max_length,
+            max_length=self.max_token_length,
             truncation=True,
         )
 
@@ -99,12 +99,14 @@ class NERTrainer(Trainer) :
             ner_tag = [self.id_convertor[t] for t in labels[i]]
             tag_labels.append(ner_tag)
 
-        tag_predictions, tag_labels = self.postprocessor(tag_predictions, labels)
-        output.metrics.update(
-            self.compute_metrics({"prediction" : tag_predictions, 
-            "labels" : tag_labels}
-            )
-        )
+        tag_predictions, tag_labels = self.postprocessor(tag_predictions, tag_labels)
+
+        metrics = self.compute_metrics({"prediction" : tag_predictions, "labels" : tag_labels})
+        for key in list(metrics.keys()):
+            if not key.startswith(f"{metric_key_prefix}_"):
+                metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
+
+        output.metrics.update(metrics)
 
         self.log(output.metrics)
         self.control = self.callback_handler.on_evaluate(self.args, self.state, self.control, output.metrics)
