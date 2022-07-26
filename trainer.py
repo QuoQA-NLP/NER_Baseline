@@ -11,49 +11,51 @@ class NERTrainer(Trainer) :
 
     def __init__(self, *args, postprocess_fn, max_token_length, **kwargs):
         super().__init__(*args, **kwargs)
-        self.post_process_fn = postprocess_fn
+        self.postprocess_fn = postprocess_fn
         self.max_token_length = max_token_length
         self.mapping = {
             0:  "B-DT",
-            1:  "B-LC",
-            2:  "B-OG",
-            3:  "B-PS",
-            4:  "B-QT",
-            5:  "B-TI",
-            6:  "O",
+            1:  "I-DT",
+            2:  "B-LC",
+            3:  "I-LC",
+            4:  "B-OG",
+            5:  "I-OG",
+            6:  "B-PS",
+            7:  "I-PS",
+            8:  "B-QT",
+            9:  "I-QT",
+            10:  "B-TI",
+            11:  "I-TI",
+            12:  "O",
         }
 
-    # need to change this function
     def subword_to_char(self, pred_id, token_list, offset_mapping) :
         sentence = "".join(token_list)
         length = len(offset_mapping)
-
-        breakpoint()
         
+        # key : char_id, value : token_id
         mapping = {}
         for i in range(length) :
             offset = offset_mapping[i]
             start_pos, end_pos = offset
-
             if start_pos == 0 and end_pos == 0 :
                 continue
 
             for j in range(start_pos, end_pos) :
                 mapping[j] = pred_id[i]
         
-        for i in range(len(sentence)) :
-            ch = sentence[i]
-            if ch == " " :
-                if i not in mapping :
-                    if mapping[i-1] == mapping[i+1] :
+        for i in range(len(token_list)) :
+            ch = token_list[i]
+            if i not in mapping :
+                if i > 0 and i < len(token_list) - 1 :
+                    if i < len(token_list) - 1 and mapping[i-1] == mapping[i+1] :
                         mapping[i] = mapping[i-1]
                     else :
-                        mapping[i] = 12
+                        mapping[i] = 6
+                else :
+                    mapping[i] = 6
 
-        char_pred = []
-        for i in range(len(token_list)) :
-            p = pred_id[mapping[i]] if i in mapping else 12
-            char_pred.append(p)
+        char_pred = [mapping[i] for i in range(len(token_list))]
         return char_pred
 
 
@@ -87,17 +89,20 @@ class NERTrainer(Trainer) :
         prediction = output.predictions
         pred_ids = np.argmax(prediction, axis=-1)
         
-        char_predictions, char_labels = [], []
+        predictions = []
         for i in range(len(pred_ids)) :
             pred_id = pred_ids[i]
             token_list = tokens[i]
             offset_mapping = offset_mappings[i]
 
             char_pred = self.subword_to_char(pred_id, token_list, offset_mapping)
+            char_pred = self.postprocess_fn(char_pred)
+            predictions.append(char_pred)
+        
+        predictions = [[self.mapping[i] for i in p]for p in predictions]
+        labels = [[self.mapping[i] for i in l]for l in labels]
 
-        breakpoint()
-
-        metrics = self.compute_metrics({"prediction" : char_predictions, "labels" : char_labels})
+        metrics = self.compute_metrics({"prediction" : predictions, "labels" : labels})
         for key in list(metrics.keys()):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)

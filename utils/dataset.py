@@ -11,18 +11,18 @@ class Loader :
         self.path = path
         self.max_length = max_length
         self.mapping = {
-            0:  0,
-            1:  0,
-            2:  1,
-            3:  1,
-            4:  2,
-            5:  2,
-            6:  3,
-            7:  3,
-            8:  4,
-            9:  4,
-            10: 5,
-            11: 5,
+            0:  0,  # B-DT
+            1:  0,  # I-DT -> B-DT
+            2:  1,  # B-LC
+            3:  1,  # I-LC -> B-LC
+            4:  2,  # B-OG
+            5:  2,  # I-OG -> B-OG
+            6:  3,  # B-PS
+            7:  3,  # I-PS -> B-PS
+            8:  4,  # B-QT
+            9:  4,  # I-QT -> B-QT
+            10: 5,  # B-TI
+            11: 5,  # I-TI -> B-TI
             12: 6
         }
         

@@ -4,6 +4,7 @@ import torch
 
 from utils.metric import Metric
 from utils.dataset import Loader
+from utils.postprocessor import Postprocessor
 
 import numpy as np
 from transformers import (
@@ -44,15 +45,15 @@ def main() :
     # Data Collator
     data_collator = DataCollatorForTokenClassification(tokenizer)
 
-    # # Wandb
+    # Wandb
     model_name = CFG.PLM.replace("/", "_")
 
-    # load_dotenv(dotenv_path="wandb.env")
-    # WANDB_AUTH_KEY = os.getenv('WANDB_AUTH_KEY')
-    # wandb.login(key=WANDB_AUTH_KEY)
+    load_dotenv(dotenv_path="wandb.env")
+    WANDB_AUTH_KEY = os.getenv('WANDB_AUTH_KEY')
+    wandb.login(key=WANDB_AUTH_KEY)
 
     run_name = f"{model_name}-finetuned-ner"
-    # wandb.init(entity=CFG.entity_name, project=CFG.project_name, name=run_name)
+    wandb.init(entity=CFG.entity_name, project=CFG.project_name, name=run_name)
 
     # Train & Eval configs
     training_args = TrainingArguments(
@@ -75,10 +76,11 @@ def main() :
         metric_for_best_model=CFG.metric_for_best_model,
     )
 
-    # wandb.config.update(training_args)
+    wandb.config.update(training_args)
 
     # Metrics
     metrics = Metric()
+    postprocessor = Postprocessor()
 
     # Trainer
     trainer = NERTrainer(
@@ -88,7 +90,7 @@ def main() :
         eval_dataset=eval_dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
-        postprocess_fn=None, # Need to update
+        postprocess_fn=postprocessor.recover,
         max_token_length=CFG.max_token_length,
         compute_metrics=metrics.compute_metrics,
     )
@@ -97,7 +99,7 @@ def main() :
     trainer.train()
     # Evaluating
     trainer.evaluate()
-    # wandb.finish()
+    wandb.finish()
 
 def seed_everything(seed):
     torch.manual_seed(seed)
