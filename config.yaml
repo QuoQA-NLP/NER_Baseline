@@ -11,7 +11,7 @@ CFG:
   train_batch_size: 32
   valid_batch_size: 32
   num_epochs: 5
-  max_token_length: 120
+  max_token_length: 256
   learning_rate: 0.00003
   weight_decay: 0.001
   warmup_ratio: 0.05

@@ -22,11 +22,6 @@ class Loader :
 
         encode_fn = partial(self.label_tokens_ner, tokenizer=tokenizer)
         dataset = dataset.map(encode_fn, batched=False)
-        dataset = dataset.remove_columns(column_names=["sentence",
-            "tokens",
-            "ner_tags",
-            "offset_mapping"]
-        )
         return dataset
 
     def label_tokens_ner(self, examples, tokenizer):
@@ -43,7 +38,6 @@ class Loader :
 
         list_label = examples["ner_tags"]
         list_label = [-100] + list_label + [-100]
-        # print(list_label)
         for token_idx, offset_map in enumerate(tokenized_output["offset_mapping"]):
             begin_letter_idx, end_letter_idx = offset_map
             label_begin = list_label[begin_letter_idx]
@@ -58,8 +52,6 @@ class Loader :
                 token_label = label_end if label_end != 12 else 12
 
             label_token_map.append(token_label)
-            # else:
-            #   raise ValueError("label_begin != label_end")
 
         tokenized_output["labels"] = label_token_map
         return tokenized_output

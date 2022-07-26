@@ -5,18 +5,19 @@ import torch
 from utils.metric import Metric
 from utils.dataset import Loader
 from utils.preprocessor import Preprocessor
+from utils.postprocessor import Postprocessor
 
 import numpy as np
 from transformers import (
     AutoConfig,
     AutoTokenizer,
     TrainingArguments,
-    Trainer,
     DataCollatorForTokenClassification,
 )
 
 import yaml
 import wandb
+from trainer import NERTrainer
 from dotenv import load_dotenv
 from easydict import EasyDict
 from model import RobertaWithLinearHead
@@ -38,6 +39,14 @@ def main() :
     preprocessor = Preprocessor()
     datasets = datasets.map(preprocessor, batched=True)
 
+    # Train Dataset
+    train_dataset = datasets["train"].remove_columns(column_names=["sentence", "tokens", "ner_tags", "offset_mapping"])
+    print(train_dataset)
+
+    # Validation Dataset
+    eval_dataset = datasets["validation"].remove_columns(column_names=["sentence", "offset_mapping", "labels"])
+    print(eval_dataset)
+
     # Config & Model
     config = AutoConfig.from_pretrained(CFG.PLM)
     config.num_labels = CFG.num_labels
@@ -50,7 +59,7 @@ def main() :
     # Data Collator
     data_collator = DataCollatorForTokenClassification(tokenizer)
 
-    # Wandb
+    # # Wandb
     model_name = CFG.PLM.replace("/", "_")
 
     load_dotenv(dotenv_path="wandb.env")
@@ -85,15 +94,18 @@ def main() :
 
     # Metrics
     metrics = Metric()
+    postprocessor = Postprocessor()
 
     # Trainer
-    trainer = Trainer(
+    trainer = NERTrainer(
         model,
         training_args,
-        train_dataset=datasets["train"],
-        eval_dataset=datasets["validation"],
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
+        postprocessor=postprocessor,
+        max_token_length=CFG.max_token_length,
         compute_metrics=metrics.compute_metrics,
     )
 
@@ -101,7 +113,7 @@ def main() :
     trainer.train()
     # Evaluating
     trainer.evaluate()
-    wandb.finish()
+    # wandb.finish()
 
 def seed_everything(seed):
     torch.manual_seed(seed)
